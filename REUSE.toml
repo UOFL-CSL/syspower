@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Wendell Conrad Richmond
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# all other files follow other copyright guidelines according to REUSE or SPDX
+version = 1
+
+[[annotations]]
+path = "flake.lock"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Wendell Conrad Richmond"
+SPDX-License-Identifier =  "GPL-2.0-or-later"
+
+[[annotations]]
+path = "closure/*"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Wendell Conrad Richmond"
+SPDX-License-Identifier =  "GPL-2.0-or-later"
+
