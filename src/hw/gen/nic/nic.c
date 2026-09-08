@@ -16,12 +16,9 @@
 #include LIB_INT
 #include LIB_STRING
 
-int hw_gen_nic_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-) {
+int hw_gen_nic_init(struct hw_dev *dev, const char *id, enum hw_locale locale,
+		    uint8_t efficiency)
+{
 	dev->mpn = SYSPWR_HW_GEN_NIC;
 	CFG_STRNCPY(dev->name, "generic_nic", HW_DEV_NAME_SIZE);
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
@@ -34,4 +31,3 @@ int hw_gen_nic_init(
 	dev->unverified_props.uw_max = CFG_GENERIC_NIC_UW_MAX_OVERRIDE;
 	return 0;
 }
-

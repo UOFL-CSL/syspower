@@ -23,9 +23,8 @@
 #include LIB_DEF
 #include LIB_STD
 
-int mdl_run(
-	struct grp_group *grp
-) {
+int mdl_run(struct grp_group *grp)
+{
 	int ret = -1;
 
 	switch (grp->model) {
@@ -58,9 +57,8 @@ int mdl_run(
 	return 0;
 }
 
-int mdl_try(
-	struct grp_group *grp
-) {
+int mdl_try(struct grp_group *grp)
+{
 	struct occurrences {
 		enum mdl_model model;
 		size_t n;
@@ -81,21 +79,21 @@ int mdl_try(
 			int duplicate = 0;
 			for (size_t k = 0; k < models.len; k++) {
 				struct occurrences *entry = models.ptr[k];
-				if (((enum mdl_model)dev->models[j]) == entry->model) {
+				if (((enum mdl_model)dev->models[j]) ==
+				    entry->model) {
 					duplicate = 1;
 					entry->n++;
 				}
 			}
 			if (!duplicate) {
-				struct occurrences *entry =
-					CFG_CALLOC(1, sizeof(struct occurrences));
+				struct occurrences *entry = CFG_CALLOC(
+					1, sizeof(struct occurrences));
 				if (!entry)
 					goto fail_models;
 				entry->model = dev->models[j];
 				entry->n++;
 				ut_gbuf_push(&models, entry);
 			}
-
 		}
 	}
 
@@ -109,7 +107,7 @@ int mdl_try(
 
 		// go with the first one that works
 		// implies models array is priority ordered
-		if(!mdl_run(grp)) {
+		if (!mdl_run(grp)) {
 			success = true;
 			break;
 		}
@@ -118,19 +116,17 @@ int mdl_try(
 	if (success)
 		return 0;
 
-	fail_models:
-		for (size_t i = 0; i < models.len; i++) {
-			CFG_FREE(models.ptr[i]);
-		}
-		ut_gbuf_ifree(&models);
-	fail:
-		return -1;
-
+fail_models:
+	for (size_t i = 0; i < models.len; i++) {
+		CFG_FREE(models.ptr[i]);
+	}
+	ut_gbuf_ifree(&models);
+fail:
+	return -1;
 }
 
-int mdl_step(
-	struct grp_group *grp
-) {
+int mdl_step(struct grp_group *grp)
+{
 	if (!grp->model) {
 		if (mdl_try(grp)) // no models worked
 			goto fail;
@@ -141,8 +137,7 @@ int mdl_step(
 
 	return 0;
 
-	fail:
-		ut_error(-1, "failed to run model(s) for a group!");
-		return -1;
+fail:
+	ut_error(-1, "failed to run model(s) for a group!");
+	return -1;
 }
-

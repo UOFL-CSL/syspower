@@ -19,18 +19,10 @@
 #include LIB_INT
 #include LIB_DEF
 
-static const char **hw_mpn_intel_wgi219lm = (const char *[]){
-	"Ethernet Connection (17) I219-LM",
-	"0x8086",
-	NULL
-};
+static const char **hw_mpn_intel_wgi219lm =
+	(const char *[]){ "Ethernet Connection (17) I219-LM", "0x8086", NULL };
 
-int hw_mpn_intel_wgi219lm_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-);
+int hw_mpn_intel_wgi219lm_init(struct hw_dev *dev, const char *id,
+			       enum hw_locale locale, uint8_t efficiency);
 
 #endif
-

@@ -19,9 +19,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-int mdl_rapl_cpu(
-	struct grp_group *grp
-) {
+int mdl_rapl_cpu(struct grp_group *grp)
+{
 	int fd;
 	char base[64];
 	char path[128];
@@ -33,14 +32,17 @@ int mdl_rapl_cpu(
 	CFG_STRNCPY(path, base, sizeof(path));
 	CFG_STRNCAT(path, "/name", sizeof(path));
 	fd = open(path, O_RDONLY);
-	if (fd < 0) goto fail;
+	if (fd < 0)
+		goto fail;
 	ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
-	if (bytes < 0) goto fail_file;
+	if (bytes < 0)
+		goto fail_file;
 	close(fd);
 	// then offset j
-	if (strncmp(buffer, "package", 7) != 0) offset = true;
+	if (strncmp(buffer, "package", 7) != 0)
+		offset = true;
 
-	int64_t puj = grp->jw.uj;	
+	int64_t puj = grp->jw.uj;
 	grp->jw.uj = 0;
 	int64_t ptime = grp->jw.uj_ts_ns;
 	grp->jw.uj_ts_ns = CFG_TIME_MONOTONIC_NS();
@@ -49,47 +51,55 @@ int mdl_rapl_cpu(
 		struct hw_dev *dev = grp->hw.ptr[i];
 		int64_t j;
 		CFG_STRTOLL(dev->id, 10, &j);
-		if (offset) j++;
-		
+		if (offset)
+			j++;
+
 		// is it a package?
-		snprintf(base, sizeof(base), "/sys/class/powercap/intel-rapl:%ld", j);
+		snprintf(base, sizeof(base),
+			 "/sys/class/powercap/intel-rapl:%ld", j);
 		CFG_STRNCPY(path, base, sizeof(path));
 		CFG_STRNCAT(path, "/name", sizeof(path));
 		fd = open(path, O_RDONLY);
-		if (fd < 0) goto fail;
+		if (fd < 0)
+			goto fail;
 		ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
-		if (bytes < 0) goto fail_file;
+		if (bytes < 0)
+			goto fail_file;
 		close(fd);
-		if (strncmp(buffer, "package", 7) != 0) continue;
-		
+		if (strncmp(buffer, "package", 7) != 0)
+			continue;
+
 		// then get the energy
 		CFG_STRNCPY(path, base, sizeof(path));
 		CFG_STRNCAT(path, "/energy_uj", sizeof(path));
 		fd = open(path, O_RDONLY);
-		if (fd < 0) goto fail;
+		if (fd < 0)
+			goto fail;
 		bytes = read(fd, buffer, sizeof(buffer) - 1);
-		if (bytes < 0) goto fail_file;
+		if (bytes < 0)
+			goto fail_file;
 		close(fd);
 		int64_t uj;
-	       	CFG_STRTOLL(buffer, 10, &uj);
+		CFG_STRTOLL(buffer, 10, &uj);
 		// initial measurement
 		if (!ptime) {
 			grp->counter += uj;
 			continue;
 		}
-		
+
 		grp->jw.uj += uj;
 	}
 
-	if (ptime) grp->jw.uj -= grp->counter;
-	if (puj) grp->jw.uw = ((grp->jw.uj - puj) * (1000 * 1000 * 1000)) / (grp->jw.uw_ts_ns - ptime);
+	if (ptime)
+		grp->jw.uj -= grp->counter;
+	if (puj)
+		grp->jw.uw = ((grp->jw.uj - puj) * (1000 * 1000 * 1000)) /
+			     (grp->jw.uw_ts_ns - ptime);
 
 	return 0;
 
-	fail_file:
-		close(fd);
-	fail:
-		return -1;
-	
+fail_file:
+	close(fd);
+fail:
+	return -1;
 }
-

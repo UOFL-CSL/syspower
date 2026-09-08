@@ -17,12 +17,9 @@
 #include LIB_INT
 #include LIB_STRING
 
-int hw_mpn_dell_0h74dc_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-) {
+int hw_mpn_dell_0h74dc_init(struct hw_dev *dev, const char *id,
+			    enum hw_locale locale, uint8_t efficiency)
+{
 	dev->mpn = SYSPWR_HW_MPN_DELL_0H74DC;
 	CFG_STRNCPY(dev->name, "dell_0H74DC", HW_DEV_NAME_SIZE);
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
@@ -35,4 +32,3 @@ int hw_mpn_dell_0h74dc_init(
 	dev->unverified_props.uw_max = 170 * 1000 * 1000;
 	return 0;
 }
-

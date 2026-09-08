@@ -29,10 +29,8 @@
 #include LIB_INT
 #include LIB_IO
 
-bool hw_match(
-	const char **dmatch,
-	const char **match
-) {
+bool hw_match(const char **dmatch, const char **match)
+{
 	int match_size;
 	int dmatch_size;
 	int size;
@@ -47,7 +45,7 @@ bool hw_match(
 	while (dmatch[i] != NULL)
 		i++;
 	dmatch_size = i;
-	
+
 	if (match_size <= dmatch_size)
 		size = match_size;
 	else
@@ -65,51 +63,64 @@ bool hw_match(
 		return false;
 }
 
-int hw_dev_init(
-	struct hw_dev *dev,
-	const char *id,
-	const char **match,
-	enum hw_locale locale,
-	uint8_t efficiency
-) {
+int hw_dev_init(struct hw_dev *dev, const char *id, const char **match,
+		enum hw_locale locale, uint8_t efficiency)
+{
 	int found = 0;
 
 	found += hw_match(hw_gen_cpu, match) ?
-		!hw_gen_cpu_init(dev, id, locale, efficiency) : 0;
+			 !hw_gen_cpu_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_gen_dram, match) ?
-		!hw_gen_dram_init(dev, id, locale, efficiency) : 0;
+			 !hw_gen_dram_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_gen_motherboard, match) ?
-		!hw_gen_motherboard_init(dev, id, locale, efficiency) : 0;
+			 !hw_gen_motherboard_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_gen_storage, match) ?
-		!hw_gen_storage_init(dev, id, locale, efficiency) : 0;
+			 !hw_gen_storage_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_gen_nic, match) ?
-		!hw_gen_nic_init(dev, id, locale, efficiency) : 0;
+			 !hw_gen_nic_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_gen_fan, match) ?
-		!hw_gen_fan_init(dev, id, locale, efficiency) : 0;
+			 !hw_gen_fan_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_mpn_dell_0h74dc, match) ?
-		!hw_mpn_dell_0h74dc_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_dell_0h74dc_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_mpn_dell_0n0992, match) ?
-		!hw_mpn_dell_0n0992_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_dell_0n0992_init(dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_mpn_intel_bx8071512700, match) ?
-		!hw_mpn_intel_bx8071512700_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_intel_bx8071512700_init(dev, id, locale,
+							 efficiency) :
+			 0;
 	found += hw_match(hw_mpn_intel_wgi219lm, match) ?
-		!hw_mpn_intel_wgi219lm_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_intel_wgi219lm_init(dev, id, locale,
+						     efficiency) :
+			 0;
 	found += hw_match(hw_mpn_micron_mtc4c10163s1uc48ba1, match) ?
-		!hw_mpn_micron_mtc4c10163s1uc48ba1_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_micron_mtc4c10163s1uc48ba1_init(
+				 dev, id, locale, efficiency) :
+			 0;
 	found += hw_match(hw_mpn_sk_hynix_hfs001tej9x101n, match) ?
-		!hw_mpn_sk_hynix_hfs001tej9x101n_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_sk_hynix_hfs001tej9x101n_init(dev, id, locale,
+							       efficiency) :
+			 0;
 	found += hw_match(hw_mpn_samsung_mzv9p2t0gw, match) ?
-		!hw_mpn_samsung_mzv9p2t0gw_init(dev, id, locale, efficiency) : 0;
+			 !hw_mpn_samsung_mzv9p2t0gw_init(dev, id, locale,
+							 efficiency) :
+			 0;
 
 	if (found > 1 || !found)
 		return -1;
-	
+
 	return 0;
 }
 
-struct hw_props hw_props_best(
-	struct hw_dev *dev
-) {
+struct hw_props hw_props_best(struct hw_dev *dev)
+{
 	struct hw_props props;
 	struct hw_props ver = dev->verified_props;
 	struct hw_props unver = dev->unverified_props;
@@ -119,4 +130,3 @@ struct hw_props hw_props_best(
 
 	return props;
 }
-

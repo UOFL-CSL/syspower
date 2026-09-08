@@ -7,9 +7,6 @@
 #ifndef MDL_GEN_STORAGE_STORAGE_H__
 #define MDL_GEN_STORAGE_STORAGE_H__
 
-int mdl_gen_storage_sysfs_bw(
-	struct grp_group *grp
-);
+int mdl_gen_storage_sysfs_bw(struct grp_group *grp);
 
 #endif
-

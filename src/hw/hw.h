@@ -58,22 +58,11 @@ struct hw_dev {
 	struct hw_props unverified_props;
 };
 
-bool hw_match(
-	const char **dmatch,
-	const char **match
-);
+bool hw_match(const char **dmatch, const char **match);
 
-int hw_dev_init(
-	struct hw_dev *dev,
-	const char *id,
-	const char **match,
-	enum hw_locale locale,
-	uint8_t efficiency
-);
+int hw_dev_init(struct hw_dev *dev, const char *id, const char **match,
+		enum hw_locale locale, uint8_t efficiency);
 
-struct hw_props hw_props_best(
-	struct hw_dev *dev
-);
+struct hw_props hw_props_best(struct hw_dev *dev);
 
 #endif
-

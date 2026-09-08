@@ -25,9 +25,6 @@ enum mdl_model {
 	SYSPWR_MDL_RAPL_CPU,
 };
 
-int mdl_step(
-	struct grp_group *grp
-);
+int mdl_step(struct grp_group *grp);
 
 #endif
-

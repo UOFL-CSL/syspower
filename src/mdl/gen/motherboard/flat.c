@@ -16,9 +16,8 @@
 #include LIB_TIME
 #include LIB_STD
 
-int mdl_gen_motherboard_flat(
-	struct grp_group *grp
-) {
+int mdl_gen_motherboard_flat(struct grp_group *grp)
+{
 	int64_t ptime = grp->jw.uj_ts_ns;
 	grp->jw.uw_ts_ns = CFG_TIME_MONOTONIC_NS();
 	grp->jw.uj_ts_ns = CFG_TIME_MONOTONIC_NS();
@@ -30,10 +29,10 @@ int mdl_gen_motherboard_flat(
 
 		grp->jw.uw += props.uw_max;
 		if (ptime)
-			grp->jw.uj += ((grp->jw.uj_ts_ns - ptime) * grp->jw.uw)
-				/ (1000 * 1000 * 1000);
+			grp->jw.uj +=
+				((grp->jw.uj_ts_ns - ptime) * grp->jw.uw) /
+				(1000 * 1000 * 1000);
 	}
 
 	return 0;
 }
-

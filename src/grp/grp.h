@@ -33,27 +33,27 @@ struct grp_group {
 	int64_t counter;
 };
 
-static inline struct grp_group *grp_group_create(void) {
+static inline struct grp_group *grp_group_create(void)
+{
 	struct grp_group *group = CFG_CALLOC(1, sizeof(struct grp_group));
 	if (!group)
 		goto fail;
 	if (ut_gbuf_ialloc(&group->hw))
 		goto fail_group;
 
-	if(ut_gbuf_init(&group->hw))
+	if (ut_gbuf_init(&group->hw))
 		goto fail_group;
 
 	return group;
 
-	fail_group:
-		CFG_FREE(group);
-	fail:
-		return NULL;
+fail_group:
+	CFG_FREE(group);
+fail:
+	return NULL;
 }
 
-static inline void grp_group_destroy(
-	struct grp_group *group
-) {
+static inline void grp_group_destroy(struct grp_group *group)
+{
 	for (uint32_t j = 0; j < group->hw.len; j++) {
 		struct hw_dev *dev = group->hw.ptr[j];
 		CFG_FREE(dev);
@@ -63,10 +63,8 @@ static inline void grp_group_destroy(
 	return;
 }
 
-static inline int grp_group_push(
-	struct grp_group *group,
-	struct hw_dev *dev
-) {
+static inline int grp_group_push(struct grp_group *group, struct hw_dev *dev)
+{
 	if (ut_gbuf_push(&group->hw, dev))
 		return -1;
 
@@ -85,6 +83,4 @@ int grp_fan_groups_push(void);
 
 int grp_poll();
 
-
 #endif
-

@@ -18,17 +18,10 @@
 #include LIB_INT
 #include LIB_DEF
 
-static const char **hw_mpn_intel_bx8071512700 = (const char *[]){
-	"12th Gen Intel(R) Core(TM) i7-12700",
-	NULL
-};
+static const char **hw_mpn_intel_bx8071512700 =
+	(const char *[]){ "12th Gen Intel(R) Core(TM) i7-12700", NULL };
 
-int hw_mpn_intel_bx8071512700_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-);
+int hw_mpn_intel_bx8071512700_init(struct hw_dev *dev, const char *id,
+				   enum hw_locale locale, uint8_t efficiency);
 
 #endif
-

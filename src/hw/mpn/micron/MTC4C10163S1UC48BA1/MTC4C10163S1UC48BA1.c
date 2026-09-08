@@ -17,12 +17,10 @@
 #include LIB_INT
 #include LIB_STRING
 
-int hw_mpn_micron_mtc4c10163s1uc48ba1_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-) {
+int hw_mpn_micron_mtc4c10163s1uc48ba1_init(struct hw_dev *dev, const char *id,
+					   enum hw_locale locale,
+					   uint8_t efficiency)
+{
 	dev->mpn = SYSPWR_HW_MPN_MICRON_MTC4C10163S1UC48BA1;
 	CFG_STRNCPY(dev->name, "micron_MTC4C10163S1UC48BA1", HW_DEV_NAME_SIZE);
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
@@ -36,4 +34,3 @@ int hw_mpn_micron_mtc4c10163s1uc48ba1_init(
 
 	return 0;
 }
-

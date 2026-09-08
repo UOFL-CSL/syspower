@@ -14,9 +14,7 @@
 // - name of the member
 // and maps deterministically the struct's address
 // be 100% certain of the type of the parent before using this macro
-#define UT_PARENT(ptr, type, member) ({				\
-	((type *)((char *)(ptr - offsetof(type, member)));	\
-})
+#define UT_PARENT(ptr, type, member) \
+	({ ((type *)((char *)(ptr - offsetof(type, member))); })
 
 #endif
-

@@ -7,9 +7,6 @@
 #ifndef MDL_NVML_NVML_H__
 #define MDL_NVML_NVML_H__
 
-int mdl_nvml_gpu(
-	struct grp_group *grp
-);
+int mdl_nvml_gpu(struct grp_group *grp);
 
 #endif
-

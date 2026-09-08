@@ -39,7 +39,7 @@
 			)
 		);
 	};
-	
+
 	# custom development shell
 	passthru = (oldAttrs.passthru or {}) // {
 		shell = nixpkgs.mkShell {

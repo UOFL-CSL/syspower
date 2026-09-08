@@ -14,7 +14,6 @@ static volatile char spdx_disclaimer[] =
 	"\n";
 
 // tricks the compiler into never optimizing identifier out
-static const volatile void * volatile spdx_disclaimer_trick = &spdx_disclaimer;
+static const volatile void *volatile spdx_disclaimer_trick = &spdx_disclaimer;
 
 #endif
-

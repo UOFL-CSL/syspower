@@ -17,17 +17,9 @@
 #include LIB_INT
 #include LIB_DEF
 
-static const char **hw_gen_fan = (const char *[]){
-	"generic_fan",
-	NULL
-};
+static const char **hw_gen_fan = (const char *[]){ "generic_fan", NULL };
 
-int hw_gen_fan_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-);
+int hw_gen_fan_init(struct hw_dev *dev, const char *id, enum hw_locale locale,
+		    uint8_t efficiency);
 
 #endif
-

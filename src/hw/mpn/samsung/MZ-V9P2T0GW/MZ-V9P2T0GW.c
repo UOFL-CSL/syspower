@@ -17,12 +17,9 @@
 #include LIB_INT
 #include LIB_STRING
 
-int hw_mpn_samsung_mzv9p2t0gw_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-) {
+int hw_mpn_samsung_mzv9p2t0gw_init(struct hw_dev *dev, const char *id,
+				   enum hw_locale locale, uint8_t efficiency)
+{
 	dev->mpn = SYSPWR_HW_MPN_SAMSUNG_MZV9P2T0GW;
 	CFG_STRNCPY(dev->name, "samsung_MZV9P2T0GW", HW_DEV_NAME_SIZE);
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
@@ -35,4 +32,3 @@ int hw_mpn_samsung_mzv9p2t0gw_init(
 	dev->unverified_props.uw_max = 61 * 100 * 1000;
 	return 0;
 }
-

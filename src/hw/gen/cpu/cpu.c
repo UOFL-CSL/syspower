@@ -16,12 +16,9 @@
 #include LIB_INT
 #include LIB_STRING
 
-int hw_gen_cpu_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-) {
+int hw_gen_cpu_init(struct hw_dev *dev, const char *id, enum hw_locale locale,
+		    uint8_t efficiency)
+{
 	dev->mpn = SYSPWR_HW_GEN_CPU;
 	CFG_STRNCPY(dev->name, "generic_cpu", HW_DEV_NAME_SIZE);
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
@@ -35,4 +32,3 @@ int hw_gen_cpu_init(
 
 	return 0;
 }
-

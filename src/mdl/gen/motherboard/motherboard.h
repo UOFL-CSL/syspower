@@ -7,9 +7,6 @@
 #ifndef MDL_GEN_MOTHERBOARD_MOTHERBOARD_H__
 #define MDL_GEN_MOTHERBOARD_MOTHERBOARD_H__
 
-int mdl_gen_motherboard_flat(
-	struct grp_group *grp
-);
+int mdl_gen_motherboard_flat(struct grp_group *grp);
 
 #endif
-

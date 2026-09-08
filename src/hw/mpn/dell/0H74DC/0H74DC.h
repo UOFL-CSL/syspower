@@ -18,19 +18,11 @@
 #include LIB_INT
 #include LIB_DEF
 
-static const char **hw_mpn_dell_0h74dc = (const char *[]){
-	"GA106 [GeForce RTX 3060 Lite Hash Rate]",
-	"0x10de",
-	"0x1028",
-	NULL
-};
+static const char **hw_mpn_dell_0h74dc =
+	(const char *[]){ "GA106 [GeForce RTX 3060 Lite Hash Rate]", "0x10de",
+			  "0x1028", NULL };
 
-int hw_mpn_dell_0h74dc_init(
-	struct hw_dev *dev,
-	const char *id,
-	enum hw_locale locale,
-	uint8_t efficiency
-);
+int hw_mpn_dell_0h74dc_init(struct hw_dev *dev, const char *id,
+			    enum hw_locale locale, uint8_t efficiency);
 
 #endif
-

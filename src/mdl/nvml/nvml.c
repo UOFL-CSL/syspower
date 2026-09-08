@@ -18,9 +18,8 @@
 
 static bool strapped = false;
 
-int mdl_nvml_gpu(
-	struct grp_group *grp
-) {
+int mdl_nvml_gpu(struct grp_group *grp)
+{
 	nvmlDevice_t nvml_dev;
 	unsigned int mw;
 
@@ -30,7 +29,8 @@ int mdl_nvml_gpu(
 	grp->jw.uw = 0;
 
 	if (!strapped) {
-		if (nvmlInit() != NVML_SUCCESS) goto fail;
+		if (nvmlInit() != NVML_SUCCESS)
+			goto fail;
 		strapped = true;
 	}
 
@@ -44,12 +44,11 @@ int mdl_nvml_gpu(
 	}
 
 	if (ptime)
-		grp->jw.uj += (grp->jw.uw * (grp->jw.uj_ts_ns - ptime))
-			/ (1000 * 1000 * 1000);
+		grp->jw.uj += (grp->jw.uw * (grp->jw.uj_ts_ns - ptime)) /
+			      (1000 * 1000 * 1000);
 
 	return 0;
-	
-	fail:
-		return -1;
-}
 
+fail:
+	return -1;
+}

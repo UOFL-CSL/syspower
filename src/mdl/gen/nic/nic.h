@@ -7,9 +7,6 @@
 #ifndef MDL_GEN_NIC_NIC_H__
 #define MDL_GEN_NIC_NIC_H__
 
-int mdl_gen_nic_sysfs_bw(
-	struct grp_group *grp
-);
+int mdl_gen_nic_sysfs_bw(struct grp_group *grp);
 
 #endif
-
