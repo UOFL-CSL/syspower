@@ -1,0 +1,49 @@
+name: "Nix CI"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: clone
+        uses: actions/checkout@v4
+
+      - name: bootstrap
+        uses: DeterminateSystems/nix-installer-action@v12
+
+      - name: cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+        
+      - name: build
+        run: NIXPKGS_ALLOW_UNFREE=1 nix build .#default --impure
+      
+      - name: copy
+        run: cp result/bin/syspower a.out && chmod +w a.out
+
+      - name: linker
+        run: patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 a.out
+        
+      - name: rpath
+        run: patchelf --remove-rpath /lib64/ld-linux-x86-64.so.2 a.out
+        
+      - name: bupload
+        uses: actions/upload-artifact@v4
+        with:
+          name: syspower
+          path: a.out
+
+      - name: rupload
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "result/bin/syspower"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: "latest"
+          prerelease: true
+          allowUpdates: true
+
