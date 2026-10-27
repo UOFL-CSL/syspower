@@ -1,7 +1,7 @@
 From 937e1c7417240c8bb82617954c23c24ec1d45eb0 Mon Sep 17 00:00:00 2001
 From: Stephanie Sithu <sesith01@louisville.edu>
 Date: Mon, 26 Oct 2026 22:32:28 -0400
-Subject: [PATCH] top: add PWR column fed by syspower's measuring code
+Subject: [PATCH 1/3] top: add PWR column fed by syspower's measuring code
 
 Each refresh, syspower's code (src/top/syspower) measures whole-system
 power. Each task gets the share of those watts matching its share of
@@ -4107,6 +4107,560 @@ index d7ab8dcc..b78afd03 100644
  }
  
  
+-- 
+2.43.0
+
+
+From 0b45d13879889ec0251f0127454cd47c49fdd5fb Mon Sep 17 00:00:00 2001
+From: Stephanie Sithu <sesith01@louisville.edu>
+Date: Tue, 27 Oct 2026 15:12:13 -0400
+Subject: [PATCH 2/3] top: split power per component (CPU, RAM, disk, ...)
+
+Each component's power from syspower is now split by the activity that
+drives it, instead of splitting the whole-system total by CPU time:
+
+- CPU_W: CPU power by share of all CPU time on the machine
+- RAM_W: RAM power by share of physical memory (RES / MemTotal)
+- DSK_W: disk power by share of bytes read + written this refresh,
+  from /proc/<pid>/io (tracked per pid, since the library only gives
+  lifetime totals)
+- TOT_W: CPU_W + RAM_W + DSK_W (replaces PWR)
+- NIC_W, BRD_W, FAN_W, GPU_W: '-' placeholders for now (GPU hidden)
+
+A new 'Watts' summary line shows whole-machine power per component.
+grp_step() and sp_sample() now report watts per component, using each
+group's syspower model to tell what kind of hardware it is.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/top/syspower/sp_top.c      |  54 ++++++++--
+ src/top/syspower/sp_top.h      |  23 +++-
+ src/top/syspower/src/grp/grp.c |  15 ++-
+ src/top/syspower/src/grp/grp.h |   2 +-
+ src/top/top.c                  | 186 +++++++++++++++++++++++++++++----
+ src/top/top.h                  |   8 +-
+ src/top/top_nls.c              |  18 +++-
+ 7 files changed, 266 insertions(+), 40 deletions(-)
+
+diff --git a/src/top/syspower/sp_top.c b/src/top/syspower/sp_top.c
+index 2e682d5e..66c63b9a 100644
+--- a/src/top/syspower/sp_top.c
++++ b/src/top/syspower/sp_top.c
+@@ -3,13 +3,18 @@
+  */
+ #include <src/dconf.h> // syspower's headers need this first
+ #include <src/grp/grp.h>
++#include <src/mdl/mdl.h>
+ #include "sp_top.h"
+ 
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ #include <unistd.h>
+ 
++// room for every syspower model number (enum mdl_model)
++#define SP_MAX_MODELS 64
++
+ void sp_log(const char *fmt, ...)
+ {
+ 	FILE *fp = fopen(SP_LOG_PATH, "a");
+@@ -23,24 +28,61 @@ void sp_log(const char *fmt, ...)
+ 	fclose(fp);
+ }
+ 
++// which component each syspower model measures
++static int sp_comp_of(int model)
++{
++	switch (model) {
++	case SYSPWR_MDL_RAPL_CPU:
++		return SP_CPU;
++	case SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE_FREE:
++		return SP_RAM;
++	case SYSPWR_MDL_GEN_STORAGE_SYSFS_BW:
++		return SP_DISK;
++	case SYSPWR_MDL_GEN_NIC_SYSFS_BW:
++		return SP_NIC;
++	case SYSPWR_MDL_GEN_MOTHERBOARD_FLAT:
++		return SP_BOARD;
++	case SYSPWR_MDL_GEN_FAN:
++		return SP_FAN;
++	case SYSPWR_MDL_NVML_GPU:
++		return SP_GPU;
++	default:
++		return -1; // a new model: add it above
++	}
++}
++
+ int sp_init(void)
+ {
+ 	// the CPU power counter and memory counters are root-only
+ 	if (geteuid() != 0) {
+-		sp_log("top-syspower: not root, PWR column disabled\n");
++		sp_log("top-syspower: not root, power columns disabled\n");
+ 		return -1;
+ 	}
+ 	return grp_strap();
+ }
+ 
+-int sp_sample(float *watts)
++int sp_sample(struct sp_power *p)
+ {
+-	int64_t uw = 0;
+-	int err = grp_step(&uw);
++	int64_t uw[SP_MAX_MODELS] = { 0 };
++	int n[SP_MAX_MODELS] = { 0 };
++	int err = grp_step(uw, n, SP_MAX_MODELS);
++
++	memset(p, 0, sizeof(*p));
++	for (int m = 0; m < SP_MAX_MODELS; m++) {
++		int c = sp_comp_of(m);
++		if (c < 0 || !n[m])
++			continue;
++		p->watts[c] += (float)uw[m] / 1000000.0f;
++		p->present[c] = 1;
++		p->total += (float)uw[m] / 1000000.0f;
++	}
+ 
+-	*watts = (float)uw / 1000000.0f;
+ 	// run as: sudo env TOP_SYSPOWER_DEBUG=1 top  -> logs every measurement
+ 	if (getenv("TOP_SYSPOWER_DEBUG"))
+-		sp_log("top-syspower: total=%.3f W err=%d\n", *watts, err);
++		sp_log("top-syspower: cpu=%.3f ram=%.3f disk=%.3f nic=%.3f "
++		       "board=%.3f fan=%.3f gpu=%.3f total=%.3f W err=%d\n",
++		       p->watts[SP_CPU], p->watts[SP_RAM], p->watts[SP_DISK],
++		       p->watts[SP_NIC], p->watts[SP_BOARD], p->watts[SP_FAN],
++		       p->watts[SP_GPU], p->total, err);
+ 	return err;
+ }
+diff --git a/src/top/syspower/sp_top.h b/src/top/syspower/sp_top.h
+index 0315a9cc..858b9bbc 100644
+--- a/src/top/syspower/sp_top.h
++++ b/src/top/syspower/sp_top.h
+@@ -5,12 +5,29 @@
+ #ifndef SP_TOP_H__
+ #define SP_TOP_H__
+ 
++// hardware components, in the order top shows them
++enum sp_comp {
++	SP_CPU,
++	SP_RAM,
++	SP_DISK,
++	SP_NIC,
++	SP_BOARD,
++	SP_FAN,
++	SP_GPU,
++	SP_NCOMP // number of components
++};
++
++struct sp_power {
++	float watts[SP_NCOMP]; // power per component, averaged since last call
++	int present[SP_NCOMP]; // 1 if this machine has it and it was measured
++	float total;           // sum of all components
++};
++
+ // find the hardware once; 0 = ok, -1 = unavailable (e.g. not run as root)
+ int sp_init(void);
+ 
+-// measure once; sets *watts to whole-system power averaged since the
+-// previous call. 0 = ok, -1 = a measurement failed (see SP_LOG_PATH)
+-int sp_sample(float *watts);
++// measure once. 0 = ok, -1 = a measurement failed (see SP_LOG_PATH)
++int sp_sample(struct sp_power *p);
+ 
+ #define SP_LOG_PATH "/var/tmp/top-syspower.log"
+ 
+diff --git a/src/top/syspower/src/grp/grp.c b/src/top/syspower/src/grp/grp.c
+index ad7e89c2..0169eb85 100644
+--- a/src/top/syspower/src/grp/grp.c
++++ b/src/top/syspower/src/grp/grp.c
+@@ -670,11 +670,14 @@ fail:
+ }
+ 
+ // top: measure every group once, like one pass of grp_poll() without
+-// printing. *uw = whole-system microwatts (after power-supply efficiency)
+-int grp_step(int64_t *uw)
++// printing. Results are added up per model (enum mdl_model), since the
++// model says what kind of hardware a group is (cpu, dram, storage, ...):
++//   uw[model] = microwatts (after power-supply efficiency)
++//   n[model]  = number of groups measured with that model
++// Both arrays must hold nmodels entries and start zeroed.
++int grp_step(int64_t *uw, int *n, int nmodels)
+ {
+ 	int err = 0;
+-	int64_t total = 0;
+ 
+ 	// step every group even if one fails, so each keeps its own timing
+ 	for (uint32_t i = 0; i < grp_groups.len; i++) {
+@@ -683,10 +686,12 @@ int grp_step(int64_t *uw)
+ 			err = -1;
+ 			continue;
+ 		}
+-		total += group->jw.uw * 100 / CFG_EFFICIENCY;
++		if (group->model <= 0 || group->model >= nmodels)
++			continue;
++		uw[group->model] += group->jw.uw * 100 / CFG_EFFICIENCY;
++		n[group->model]++;
+ 	}
+ 
+-	*uw = total;
+ 	return err;
+ }
+ 
+diff --git a/src/top/syspower/src/grp/grp.h b/src/top/syspower/src/grp/grp.h
+index a6587264..ccf778db 100644
+--- a/src/top/syspower/src/grp/grp.h
++++ b/src/top/syspower/src/grp/grp.h
+@@ -73,7 +73,7 @@ static inline int grp_group_push(struct grp_group *group, struct hw_dev *dev)
+ 
+ int grp_strap(void);
+ int grp_strip(void);
+-int grp_step(int64_t *uw); // top: measure all groups once
++int grp_step(int64_t *uw, int *n, int nmodels); // top: measure all groups once
+ int grp_cpu_groups_push(void);
+ int grp_motherboard_groups_push(void);
+ int grp_dram_groups_push(void);
+diff --git a/src/top/top.c b/src/top/top.c
+index 303ee1da..164599de 100644
+--- a/src/top/top.c
++++ b/src/top/top.c
+@@ -2003,8 +2003,15 @@ static struct {
+    {     7,     -1,  A_right,  PIDS_UTILIZATION_C  },  // real     EU_CUC
+    {    10,     -1,  A_right,  PIDS_NS_CGROUP      },  // ul_int   EU_NS7
+    {    10,     -1,  A_right,  PIDS_NS_TIME        },  // ul_int   EU_NS8
+-   {     6,     -1,  A_right,  PIDS_TICS_ALL_DELTA }   // u_int    EU_PWR
+-#define eu_LAST        EU_PWR
++   {     6,     -1,  A_right,  PIDS_TICS_ALL_DELTA },  // u_int    EU_PWR  (total)
++   {     6,     -1,  A_right,  PIDS_TICS_ALL_DELTA },  // u_int    EU_PWC  (cpu)
++   {     6,     -1,  A_right,  PIDS_MEM_RES        },  // ul_int   EU_PWM  (ram)
++   {     6,     -1,  A_right,  PIDS_ID_PID         },  // s_int    EU_PWD  (disk)
++   {     6,     -1,  A_right,  PIDS_ID_PID         },  // s_int    EU_PWN  (nic, placeholder)
++   {     6,     -1,  A_right,  PIDS_ID_PID         },  // s_int    EU_PWB  (board, placeholder)
++   {     6,     -1,  A_right,  PIDS_ID_PID         },  // s_int    EU_PWF  (fan, placeholder)
++   {     6,     -1,  A_right,  PIDS_ID_PID         }   // s_int    EU_PWG  (gpu, placeholder)
++#define eu_LAST        EU_PWG
+ // xtra Fieldstab 'pseudo pflag' entries for the newlib interface . . . . . . .
+ #define eu_CMDLINE     eu_LAST +1
+ #define eu_TICS_ALL_C  eu_LAST +2
+@@ -2210,6 +2217,15 @@ static void build_headers (void) {
+                // cpu calculations depend on number of threads
+                   ckITEM(EU_THD);
+                   break;
++               case EU_PWR:
++               // total power adds cpu (own item), ram and disk shares
++                  ckITEM(EU_MEM);
++               // fall through
++               case EU_PWD:
++               // disk power needs each task's bytes read + written
++                  ckITEM(EU_IRB);
++                  ckITEM(EU_IWB);
++                  break;
+                case EU_TME:
+                case EU_TM2:
+                // for 'cumulative' times, we'll need equivalent of cutime & cstime
+@@ -2800,22 +2816,107 @@ static void *memory_refresh (void *unused) {
+ 
+ 
+         /*
+-         * Power column (PWR): syspower's measuring code (src/top/syspower)
+-         * runs inside top. Each refresh it measures whole-system watts,
+-         * then each task gets the share of those watts matching its
+-         * share of all cpu time (see EU_PWR in task_show). */
+-static float Pwr_watts;               // whole-system watts since the last frame
+-static int   Pwr_ok;                  // 1 when this frame's measurement worked
++         * Power columns: syspower's measuring code (src/top/syspower) runs
++         * inside top. Each refresh it measures watts per component (cpu,
++         * ram, disk, ...). Each task then gets a share of each component:
++         *    cpu  - by its share of all cpu time on the machine
++         *    ram  - by its share of all physical memory (RES, like %MEM)
++         *    disk - by its share of all bytes read + written this refresh
++         * nic, board, fan and gpu have no per-task split yet ('-'). */
++static struct sp_power Pwr;           // watts per component since last frame
++static int Pwr_ready = -1;            // -1 = not tried yet, 0 = no, 1 = yes
++static int Pwr_ok;                    // 1 when this frame's measurement worked
+ 
+ static void pwr_refresh (void) {
+-   static int ready = -1;             // -1 = not tried yet, 0 = no, 1 = yes
+-
+-   if (ready < 0)
+-      ready = (sp_init() == 0);
+-   Pwr_ok = ready && sp_sample(&Pwr_watts) == 0;
++   if (Pwr_ready < 0)
++      Pwr_ready = (sp_init() == 0);
++   Pwr_ok = Pwr_ready && sp_sample(&Pwr) == 0;
+ } // end: pwr_refresh
+ 
+ 
++        /*
++         * Disk bytes per task. The library only gives running totals since
++         * each task started, so we remember last frame's total per pid
++         * (a small hash table) to get the bytes moved during this frame. */
++#define PWR_IO_CAP  65536             // max tasks tracked (power of 2)
++struct pwr_io { int pid; unsigned long long bytes, delta; };
++static struct pwr_io *Pwr_io_cur, *Pwr_io_prv;
++static unsigned long long Pwr_io_total; // all tasks' bytes this frame
++
++static unsigned pwr_io_slot (const struct pwr_io *t, int pid) {
++   unsigned h = ((unsigned)pid * 2654435761u) & (PWR_IO_CAP - 1);
++
++   while (t[h].pid && t[h].pid != pid)
++      h = (h + 1) & (PWR_IO_CAP - 1);
++   return h;
++} // end: pwr_io_slot
++
++static void pwr_io_refresh (struct pids_fetch *reap) {
++   struct pwr_io *tmp;
++   int i;
++
++   Pwr_io_total = 0;
++   // only when a disk or total power column asked for the io items
++   if (Pids_itms[EU_IRB] != PIDS_IO_READ_BYTES
++   || Pids_itms[EU_IWB] != PIDS_IO_WRITE_BYTES)
++      return;
++   if (!Pwr_io_cur) {
++      Pwr_io_cur = alloc_c(PWR_IO_CAP * sizeof(struct pwr_io));
++      Pwr_io_prv = alloc_c(PWR_IO_CAP * sizeof(struct pwr_io));
++   }
++   // last frame's table becomes 'previous', then refill 'current'
++   tmp = Pwr_io_prv; Pwr_io_prv = Pwr_io_cur; Pwr_io_cur = tmp;
++   memset(Pwr_io_cur, 0, PWR_IO_CAP * sizeof(struct pwr_io));
++   if (reap->counts->total > PWR_IO_CAP / 2)
++      return;                         // too many tasks, table would overflow
++
++   for (i = 0; i < reap->counts->total; i++) {
++      struct pids_stack *p = reap->stacks[i];
++      int pid = PID_VAL(EU_PID, s_int, p);
++      unsigned long long bytes = PID_VAL(EU_IRB, ul_int, p) + PID_VAL(EU_IWB, ul_int, p);
++      unsigned c = pwr_io_slot(Pwr_io_cur, pid);
++      unsigned o = pwr_io_slot(Pwr_io_prv, pid);
++
++      if (pid <= 0) continue;
++      Pwr_io_cur[c].pid = pid;
++      Pwr_io_cur[c].bytes = bytes;
++      // a new task (or a reused pid) has no previous total, so no delta
++      if (Pwr_io_prv[o].pid == pid && bytes >= Pwr_io_prv[o].bytes)
++         Pwr_io_cur[c].delta = bytes - Pwr_io_prv[o].bytes;
++      Pwr_io_total += Pwr_io_cur[c].delta;
++   }
++} // end: pwr_io_refresh
++
++static unsigned long long pwr_io_delta (int pid) {
++   unsigned c;
++
++   if (!Pwr_io_cur) return 0;
++   c = pwr_io_slot(Pwr_io_cur, pid);
++   return Pwr_io_cur[c].pid == pid ? Pwr_io_cur[c].delta : 0;
++} // end: pwr_io_delta
++
++
++        /*
++         * One task's watts for each component it can be tied to. */
++static float pwr_task_cpu (unsigned ticks) {
++   float pct = (float)ticks * Frame_etscale;
++   // irix mode is % of one cpu, so make it % of the whole machine
++   if (Rc.mode_irixps)
++      pct /= (float)Cpu_cnt;
++   return pct / 100.0f * Pwr.watts[SP_CPU];
++} // end: pwr_task_cpu
++
++static float pwr_task_ram (unsigned long res_kib) {
++   unsigned long tot = MEM_VAL(mem_TOT);
++   return tot ? (float)res_kib / (float)tot * Pwr.watts[SP_RAM] : 0.0f;
++} // end: pwr_task_ram
++
++static float pwr_task_disk (int pid) {
++   if (!Pwr_io_total) return 0.0f;
++   return (float)pwr_io_delta(pid) / (float)Pwr_io_total * Pwr.watts[SP_DISK];
++} // end: pwr_task_disk
++
++
+         /*
+          * This guy's responsible for interfacing with the library <pids> API
+          * then refreshing the WIN_t ptr arrays, growing them as appropirate. */
+@@ -2849,6 +2950,7 @@ static void *tasks_refresh (void *unused) {
+          Pids_reap = procps_pids_reap(Pids_ctx, what);
+       if (!Pids_reap)
+          error_exit(fmtmk(N_fmt(LIB_errorpid_fmt), __LINE__, strerror(errno)));
++      pwr_io_refresh(Pids_reap);
+ 
+       // now refresh each window's stacks pointer array...
+       if (n_alloc < n_reap) {
+@@ -6776,6 +6878,32 @@ all_done:
+          *    1) Display uptime and load average (maybe)
+          *    2) Display task/cpu states (maybe)
+          *    3) Display memory & swap usage (maybe) */
++        /*
++         * The 'Watts' summary line: whole-machine power per component,
++         * '-' for components this machine doesn't have (or couldn't measure). */
++static const char *pwr_summary_line (void) {
++   static const char *names[SP_NCOMP] = { "CPU", "RAM", "Disk", "NIC", "Board", "Fan", "GPU" };
++   static char buf[SMLBUFSIZ];
++   int c, n;
++
++   if (!Pwr_ready)
++      return "Watts : unavailable, run top as root (sudo top)\n";
++   if (!Pwr_ok)
++      return "Watts : measurement failed, see " SP_LOG_PATH "\n";
++
++   n = snprintf(buf, sizeof(buf), "Watts :");
++   for (c = 0; c < SP_NCOMP && n < (int)sizeof(buf); c++) {
++      if (Pwr.present[c])
++         n += snprintf(buf + n, sizeof(buf) - n, " %s %.2f,", names[c], Pwr.watts[c]);
++      else
++         n += snprintf(buf + n, sizeof(buf) - n, " %s -,", names[c]);
++   }
++   if (n < (int)sizeof(buf))
++      snprintf(buf + n, sizeof(buf) - n, "  Total %.2f\n", Pwr.total);
++   return buf;
++} // end: pwr_summary_line
++
++
+ static void summary_show (void) {
+  #define isROOM(f,n) (CHKw(Curwin, f) && Msg_row + (n) < SCREEN_ROWS - 1)
+ 
+@@ -6831,6 +6959,12 @@ static void summary_show (void) {
+       do_memory();
+    }
+ 
++   // Display whole-machine power per component (syspower)
++   if (Msg_row + 1 < SCREEN_ROWS - 1) {
++      show_special(0, pwr_summary_line());
++      Msg_row += 1;
++   }
++
+  #undef isROOM
+ } // end: summary_show
+ 
+@@ -6940,19 +7074,33 @@ static const char *task_show (const WIN_t *q, int idx) {
+             break;
+    /* s_int, scale_pcnt with special handling */
+    /* u_int, this task's share of syspower's watts (see pwr_refresh) */
+-         case EU_PWR:        // PIDS_TICS_ALL_DELTA
+-         {  float pct = (float)rSv(EU_PWR, u_int) * Frame_etscale;
++         case EU_PWC:        // PIDS_TICS_ALL_DELTA -> cpu watts
++         case EU_PWM:        // PIDS_MEM_RES        -> ram watts
++         case EU_PWD:        // bytes via pwr_io    -> disk watts
++         case EU_PWR:        // PIDS_TICS_ALL_DELTA -> cpu + ram + disk
++         {  float w = 0.0f;
+             if (Restrict_some || !Pwr_ok) {
+                cp = justify_pad("-", W, Jn);
+                break;
+             }
+-            // irix mode is % of one cpu, so make it % of the whole machine
+-            if (Rc.mode_irixps)
+-               pct /= (float)Cpu_cnt;
++            if (i == EU_PWC || i == EU_PWR)
++               w += pwr_task_cpu(rSv(i, u_int));
++            if (i == EU_PWM)
++               w += pwr_task_ram(rSv(EU_PWM, ul_int));
++            if (i == EU_PWR)
++               w += pwr_task_ram(rSv(EU_MEM, ul_int));
++            if (i == EU_PWD || i == EU_PWR)
++               w += pwr_task_disk(rSv(EU_PID, s_int));
+             // last arg 1 = up to 3 decimals, since most tasks use well under 1 W
+-            cp = scale_pcnt(pct / 100.0f * Pwr_watts, W, Jn, 1);
++            cp = scale_pcnt(w, W, Jn, 1);
+          }
+             break;
++         case EU_PWN:        // nic   \  no way yet to tie these to one
++         case EU_PWB:        // board  > task, so placeholders for now;
++         case EU_PWF:        // fan   |  their totals are in the summary
++         case EU_PWG:        // gpu   /  'Watts' line at the top
++            cp = justify_pad("-", W, Jn);
++            break;
+          case EU_CPU:        // PIDS_TICS_ALL_DELTA
+          {  float u = (float)rSv(EU_CPU, u_int);
+             int n = rSv(EU_THD, s_int);
+diff --git a/src/top/top.h b/src/top/top.h
+index aa097a67..400e042f 100644
+--- a/src/top/top.h
++++ b/src/top/top.h
+@@ -226,7 +226,7 @@ enum pflag {
+    EU_AGI, EU_AGN,
+    EU_TM3, EU_TM4, EU_CUU, EU_CUC,
+    EU_NS7, EU_NS8,
+-   EU_PWR,
++   EU_PWR, EU_PWC, EU_PWM, EU_PWD, EU_PWN, EU_PWB, EU_PWF, EU_PWG,
+ #ifdef USE_X_COLHDR
+    // not really pflags, used with tbl indexing
+    EU_MAXPFLGS
+@@ -565,11 +565,11 @@ typedef struct WIN_t {
+     234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272  }
+ #else
+ #define DEF_FIELDS { \
+-     75,  76, 150,  81, 103, 105, 119, 123, 128, 111, 231, 117, 115, 106, 108, 137, 140, 139,  78,  82,  84, \
++     75,  76, 150,  81, 103, 105, 119, 123, 128, 111, 233, 235, 237, 239, 241, 243, 231, 117, 115, 106, 108, 137, 140, 139,  78,  82,  84, \
+      86,  88,  90,  92,  94,  96,  98, 100, 112, 120, 124, 126, 130, 132, 134, 142, 144, 146, 148, 152, \
+     154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182, 184, 186, 188, 190, 192, \
+-    194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 232, \
+-    234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272  }
++    194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, \
++    244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272  }
+ #endif
+ #define JOB_FIELDS { \
+      75,  77, 115, 111, 117,  80, 103, 105, 137, 119, 123, 128, 120,  79, 139,  82,  84,  86,  88,  90, \
+diff --git a/src/top/top_nls.c b/src/top/top_nls.c
+index b78afd03..667a081b 100644
+--- a/src/top/top_nls.c
++++ b/src/top/top_nls.c
+@@ -387,8 +387,22 @@ static void build_two_nlstabs (void) {
+ /* Translation Hint: maximum 'nsTIME' = 10 + */
+    Head_nlstab[EU_NS8] = _("nsTIME");
+    Desc_nlstab[EU_NS8] = _("TIME namespace Inode");
+-   Head_nlstab[EU_PWR] = _("PWR");
+-   Desc_nlstab[EU_PWR] = _("Power, W (share of syspower)");
++   Head_nlstab[EU_PWR] = _("TOT_W");
++   Desc_nlstab[EU_PWR] = _("Power W, total: CPU+RAM+DSK");
++   Head_nlstab[EU_PWC] = _("CPU_W");
++   Desc_nlstab[EU_PWC] = _("Power W, CPU (by cpu time)");
++   Head_nlstab[EU_PWM] = _("RAM_W");
++   Desc_nlstab[EU_PWM] = _("Power W, RAM (by RES)");
++   Head_nlstab[EU_PWD] = _("DSK_W");
++   Desc_nlstab[EU_PWD] = _("Power W, disk (by bytes r+w)");
++   Head_nlstab[EU_PWN] = _("NIC_W");
++   Desc_nlstab[EU_PWN] = _("Power W, network (not yet)");
++   Head_nlstab[EU_PWB] = _("BRD_W");
++   Desc_nlstab[EU_PWB] = _("Power W, motherboard (not yet)");
++   Head_nlstab[EU_PWF] = _("FAN_W");
++   Desc_nlstab[EU_PWF] = _("Power W, fans (not yet)");
++   Head_nlstab[EU_PWG] = _("GPU_W");
++   Desc_nlstab[EU_PWG] = _("Power W, GPU (not yet)");
+ }
+ 
+ 
+-- 
+2.43.0
+
+
+From 83f4dae2def907d470e0d25cb20c4f5c2335c476 Mon Sep 17 00:00:00 2001
+From: Stephanie Sithu <sesith01@louisville.edu>
+Date: Tue, 27 Oct 2026 15:12:56 -0400
+Subject: [PATCH 3/3] top: update syspower README for per-component power
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/top/syspower/README.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/top/syspower/README.md b/src/top/syspower/README.md
+index 7f00510a..d71081e3 100644
+--- a/src/top/syspower/README.md
++++ b/src/top/syspower/README.md
+@@ -1,6 +1,6 @@
+ # syspower inside top
+ 
+-Power-measuring code from [syspower](https://github.com/UOFL-CSL/syspower), compiled into `top` to fill the **PWR** column.
++Power-measuring code from [syspower](https://github.com/UOFL-CSL/syspower), compiled into `top` to fill the power columns (`CPU_W`, `RAM_W`, `DSK_W`, `TOT_W`, ...) and the `Watts` summary line.
+ 
+ **Source:** syspower commit `c129213` plus the blank-name fix in `src/hw/hw.c`. That fix stops `hw_match()` from matching every part when a device has no model name.
+ 
+@@ -16,5 +16,5 @@ Power-measuring code from [syspower](https://github.com/UOFL-CSL/syspower), comp
+ 
+ ## Changes made to the copied syspower files
+ 
+-- `src/grp/grp.c`, `src/grp/grp.h`: added `grp_step()`, which measures every group once without printing.
++- `src/grp/grp.c`, `src/grp/grp.h`: added `grp_step()`, which measures every group once without printing and reports watts per syspower model (`sp_top.c` maps each model to a component: CPU, RAM, disk, ...).
+ - `src/dconf.h`: wrapped `CFG_PRINTF_ERR` in `#ifndef` so `sp_config.h` can redirect it.
 -- 
 2.43.0
 
