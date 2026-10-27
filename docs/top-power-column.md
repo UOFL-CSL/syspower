@@ -10,10 +10,37 @@ This guide shows how to add a **PWR** column to `top`. It shows how many watts e
 
 **Where the code lives**
 
-| Repo | Branch | What |
-|---|---|---|
-| `~/Documents/lab/procps` (clone of [procps-ng](https://gitlab.com/procps-ng/procps), tag `v4.0.4`) | `power-column` | Modified `top`, with syspower's code copied in under `src/top/syspower/` |
-| `~/Documents/lab/syspower` | `proportional` | `hw.c` bug fix, `tools/fio_dual.sh` test workload, this guide |
+| What | Where |
+|---|---|
+| Modified `top`, with syspower's code copied in under `src/top/syspower/` | [`top-power-column.patch`](top-power-column.patch), next to this guide. It's a patch against [procps-ng](https://gitlab.com/procps-ng/procps) tag `v4.0.4`. |
+| `hw.c` bug fix, `tools/fio_dual.sh` test workload, this guide | this repo (syspower), branch `proportional` |
+
+## Quick start: use the finished code
+
+If you just want the working PWR column, apply the patch instead of making every change in sections 4–7 by hand. Install the packages from [section 2](#2-before-you-start) first.
+
+```bash
+cd ~/Documents/lab
+git clone -b v4.0.4 https://gitlab.com/procps-ng/procps.git
+cd procps
+git switch -c power-column
+git am ~/Documents/lab/syspower/docs/top-power-column.patch   # adds the PWR commit
+
+./autogen.sh
+./configure --disable-nls
+make -j8 src/top/top
+sudo ./src/top/top
+```
+
+`git am` applies the patch as a real commit, keeping the author and message. Then continue with [section 8](#8-build-run-install-test) to install and test it.
+
+**After you change `top`**, regenerate the patch so the repo stays current. From the procps folder:
+```bash
+git format-patch v4.0.4..HEAD --stdout > ~/Documents/lab/syspower/docs/top-power-column.patch
+```
+This puts **all** your commits since v4.0.4 into the one file. Commit the updated patch to syspower.
+
+The rest of this guide explains what the patch changes and why.
 
 ---
 
