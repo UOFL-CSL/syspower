@@ -51,6 +51,10 @@ bool hw_match(const char **dmatch, const char **match)
 	else
 		size = dmatch_size;
 
+	//an empty list would otherwise match in the loop once and return true.
+	if (size == 0)
+		return false;
+
 	int matches = 0;
 	for (i = 0; i < size; i++) {
 		if (strncmp(match[i], dmatch[i], HW_DEV_MATCH_SIZE) == 0)
