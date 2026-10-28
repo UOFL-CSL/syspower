@@ -24,8 +24,9 @@ int hw_gen_dram_init(struct hw_dev *dev, const char *id, enum hw_locale locale,
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
 	dev->locale = locale;
 	dev->efficiency = efficiency;
-	dev->models[0] = SYSPWR_MDL_RAPL_DRAM;
-	dev->models[1] = SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE;
+	dev->models[0] = SYSPWR_MDL_GEN_DRAM_ACTIVITY;
+	dev->models[1] = SYSPWR_MDL_RAPL_DRAM;
+	dev->models[2] = SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE;
 	dev->verified_props.uw_min = 0;
 	dev->verified_props.uw_max = 0;
 	dev->unverified_props.uw_min = CFG_GENERIC_DRAM_UW_MIN_OVERRIDE;

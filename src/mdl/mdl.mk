@@ -13,6 +13,7 @@ MDL_SRCS = ${MDL_SRCDIR}/mdl.c \
 	${MDL_SRCDIR}/nvml/nvml.c \
 	${MDL_SRCDIR}/rapl/rapl.c \
 	${MDL_SRCDIR}/gen/dram/uncore_free.c \
+	${MDL_SRCDIR}/gen/dram/dram_model.c \
 	${MDL_SRCDIR}/gen/motherboard/flat.c \
 	${MDL_SRCDIR}/gen/fan/fan.c \
 	${MDL_SRCDIR}/gen/nic/sysfs_bw.c \
@@ -21,6 +22,7 @@ MDL_OBJS = ${MDL_OBJDIR}/mdl.o \
 	${MDL_OBJDIR}/nvml/nvml.o \
 	${MDL_OBJDIR}/rapl/rapl.o \
 	${MDL_OBJDIR}/gen/dram/uncore_free.o \
+	${MDL_OBJDIR}/gen/dram/dram_model.o \
 	${MDL_OBJDIR}/gen/motherboard/flat.o \
 	${MDL_OBJDIR}/gen/fan/fan.o \
 	${MDL_OBJDIR}/gen/nic/sysfs_bw.o \
@@ -57,6 +59,16 @@ ${MDL_OBJDIR}/mdl.o: \
 
 ${MDL_OBJDIR}/gen/dram/uncore_free.o: \
 	${MDL_SRCDIR}/gen/dram/uncore_free.c \
+	${MDL_SRCDIR}/gen/dram/dram.h \
+	${SRCDIR}/spdx/GPL-2.0-or-later.h \
+	${MDL_SRCDIR}/mdl.mk
+		@DIR=$@ && DIR=$${DIR%/*} && mkdir -p $${DIR}
+		@${CC} -o $@ -c $< ${CFLAGS} ${INCLUDES}
+		@printf -- 'CC\t$@\n'
+
+${MDL_OBJDIR}/gen/dram/dram_model.o: \
+	${MDL_SRCDIR}/gen/dram/dram_model.c \
+	${MDL_SRCDIR}/gen/dram/dram_model.h \
 	${MDL_SRCDIR}/gen/dram/dram.h \
 	${SRCDIR}/spdx/GPL-2.0-or-later.h \
 	${MDL_SRCDIR}/mdl.mk

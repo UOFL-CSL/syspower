@@ -43,6 +43,9 @@ int mdl_run(struct grp_group *grp)
 	case SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE:
 		ret = mdl_gen_dram_intel_uncore_free(grp);
 		break;
+	case SYSPWR_MDL_GEN_DRAM_ACTIVITY:
+		ret = mdl_gen_dram_activity(grp);
+		break;
 	case SYSPWR_MDL_GEN_MOTHERBOARD_FLAT:
 		ret = mdl_gen_motherboard_flat(grp);
 		break;

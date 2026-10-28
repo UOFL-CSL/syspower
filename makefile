@@ -42,7 +42,6 @@ CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE \
 	${META} \
 	${DCONF} \
 	-O2 \
-	-fhardened \
 	-Wall -Wextra \
 	-Wformat -Wformat=2 \
 	-Wconversion -Wsign-conversion \

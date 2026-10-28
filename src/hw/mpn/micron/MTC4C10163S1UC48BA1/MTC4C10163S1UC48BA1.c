@@ -26,7 +26,9 @@ int hw_mpn_micron_mtc4c10163s1uc48ba1_init(struct hw_dev *dev, const char *id,
 	CFG_STRNCPY(dev->id, id, HW_DEV_ID_SIZE);
 	dev->locale = locale;
 	dev->efficiency = efficiency;
-	dev->models[0] = SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE;
+	dev->models[0] = SYSPWR_MDL_GEN_DRAM_ACTIVITY;
+	dev->models[1] = SYSPWR_MDL_RAPL_DRAM;
+	dev->models[2] = SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE;
 	dev->verified_props.uw_min = 0;
 	dev->verified_props.uw_max = 0;
 	dev->unverified_props.uw_min = 155 * 1000;
