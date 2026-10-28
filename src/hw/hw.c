@@ -17,6 +17,7 @@
 #include <src/hw/mpn/dell/0H74DC/0H74DC.h>
 #include <src/hw/mpn/dell/0N0992/0N0992.h>
 #include <src/hw/mpn/intel/BX8071512700/BX8071512700.h>
+#include <src/hw/mpn/intel/SSDSC2BB120G7R/SSDSC2BB120G7R.h>
 #include <src/hw/mpn/intel/WGI219LM/WGI219LM.h>
 #include <src/hw/mpn/micron/MTC4C10163S1UC48BA1/MTC4C10163S1UC48BA1.h>
 #include <src/hw/mpn/samsung/MZ-V9P2T0GW/MZ-V9P2T0GW.h>
@@ -94,6 +95,10 @@ int hw_dev_init(struct hw_dev *dev, const char *id, const char **match,
 			 0;
 	found += hw_match(hw_mpn_intel_bx8071512700, match) ?
 			 !hw_mpn_intel_bx8071512700_init(dev, id, locale,
+							 efficiency) :
+			 0;
+	found += hw_match(hw_mpn_intel_ssdsc2bb120g7r, match) ?
+			 !hw_mpn_intel_ssdsc2bb120g7r_init(dev, id, locale,
 							 efficiency) :
 			 0;
 	found += hw_match(hw_mpn_intel_wgi219lm, match) ?

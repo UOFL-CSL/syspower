@@ -19,6 +19,7 @@ HW_SRCS = ${HW_SRCDIR}/hw.c \
 	${HW_SRCDIR}/mpn/dell/0H74DC/0H74DC.c \
 	${HW_SRCDIR}/mpn/dell/0N0992/0N0992.c \
 	${HW_SRCDIR}/mpn/intel/BX8071512700/BX8071512700.c \
+	${HW_SRCDIR}/mpn/intel/SSDSC2BB120G7R/SSDSC2BB120G7R.c \
 	${HW_SRCDIR}/mpn/intel/WGI219LM/WGI219LM.c \
 	${HW_SRCDIR}/mpn/micron/MTC4C10163S1UC48BA1/MTC4C10163S1UC48BA1.c \
 	${HW_SRCDIR}/mpn/samsung/MZ-V9P2T0GW/MZ-V9P2T0GW.c \
@@ -33,6 +34,7 @@ HW_OBJS = ${HW_OBJDIR}/hw.o \
 	${HW_OBJDIR}/mpn/dell/0H74DC/0H74DC.o \
 	${HW_OBJDIR}/mpn/dell/0N0992/0N0992.o \
 	${HW_OBJDIR}/mpn/intel/BX8071512700/BX8071512700.o \
+	${HW_OBJDIR}/mpn/intel/SSDSC2BB120G7R/SSDSC2BB120G7R.o \
 	${HW_OBJDIR}/mpn/intel/WGI219LM/WGI219LM.o \
 	${HW_SRCDIR}/mpn/micron/MTC4C10163S1UC48BA1/MTC4C10163S1UC48BA1.c \
 	${HW_OBJDIR}/mpn/micron/MTC4C10163S1UC48BA1/MTC4C10163S1UC48BA1.o \
@@ -144,6 +146,16 @@ ${HW_OBJDIR}/mpn/intel/BX8071512700/BX8071512700.o: \
 		@DIR=$@ && DIR=$${DIR%/*} && mkdir -p $${DIR}
 		@${CC} -o $@ -c $< ${CFLAGS} ${INCLUDES}
 		@printf -- 'CC\t$@\n'
+
+${HW_OBJDIR}/mpn/intel/SSDSC2BB120G7R/SSDSC2BB120G7R.o: \
+	${HW_SRCDIR}/mpn/intel/SSDSC2BB120G7R/SSDSC2BB120G7R.c \
+	${HW_SRCDIR}/mpn/intel/SSDSC2BB120G7R/SSDSC2BB120G7R.h \
+	${SRCDIR}/spdx/GPL-2.0-or-later.h \
+	${HW_SRCDIR}/hw.mk
+		@DIR=$@ && DIR=$${DIR%/*} && mkdir -p $${DIR}
+		@${CC} -o $@ -c $< ${CFLAGS} ${INCLUDES}
+		@printf -- 'CC\t$@\n'
+
 
 ${HW_OBJDIR}/mpn/intel/WGI219LM/WGI219LM.o: \
 	${HW_SRCDIR}/mpn/intel/WGI219LM/WGI219LM.c \

@@ -27,7 +27,7 @@ int hw_gen_motherboard_init(struct hw_dev *dev, const char *id,
 	dev->models[0] = SYSPWR_MDL_GEN_MOTHERBOARD_FLAT;
 	dev->verified_props.uw_min = 0;
 	dev->verified_props.uw_max = 0;
-	dev->unverified_props.uw_min = 752 * 10 * 1000;
-	dev->unverified_props.uw_max = 752 * 10 * 1000;
+	dev->unverified_props.uw_min = CFG_GENERIC_MOTHERBOARD_UW_MIN_OVERRIDE;
+	dev->unverified_props.uw_max = CFG_GENERIC_MOTHERBOARD_UW_MAX_OVERRIDE;
 	return 0;
 }

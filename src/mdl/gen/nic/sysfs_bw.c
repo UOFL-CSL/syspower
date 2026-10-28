@@ -93,6 +93,8 @@ static int configure(struct grp_group *grp)
 				if (!lentry)
 					goto fail_dir;
 				lentry->bw_max = bw; // bps
+				if (lentry->bw_max < 0)
+					lentry->bw_max = 0;
 
 				// construct read/write paths
 				CFG_STRNCPY(path, dev->id, sizeof(path) - 1);
@@ -186,11 +188,15 @@ int mdl_gen_nic_sysfs_bw(struct grp_group *grp)
 			lentry->prev = total;
 			if (bw > lentry->bw_max)
 				lentry->bw_max = bw;
-			grp->jw.uw +=
-				props.uw_min / (int64_t)nentry->links.len +
-				(props.uw_max * bw) /
-					(int64_t)nentry->links.len /
-					lentry->bw_max;
+
+			if (lentry->bw_max)
+				grp->jw.uw +=
+					props.uw_min / (int64_t)nentry->links.len +
+					(props.uw_max * bw) /
+						(int64_t)nentry->links.len /
+						lentry->bw_max;
+			else // best effort
+				grp->jw.uw += props.uw_min / (int64_t)nentry->links.len;
 		}
 	}
 

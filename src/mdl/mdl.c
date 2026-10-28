@@ -40,7 +40,7 @@ int mdl_run(struct grp_group *grp)
 	case SYSPWR_MDL_GEN_NIC_SYSFS_BW:
 		ret = mdl_gen_nic_sysfs_bw(grp);
 		break;
-	case SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE_FREE:
+	case SYSPWR_MDL_GEN_DRAM_INTEL_UNCORE:
 		ret = mdl_gen_dram_intel_uncore_free(grp);
 		break;
 	case SYSPWR_MDL_GEN_MOTHERBOARD_FLAT:
@@ -48,6 +48,9 @@ int mdl_run(struct grp_group *grp)
 		break;
 	case SYSPWR_MDL_RAPL_CPU:
 		ret = mdl_rapl_cpu(grp);
+		break;
+	case SYSPWR_MDL_RAPL_DRAM:
+		ret = mdl_rapl_dram(grp);
 		break;
 	}
 

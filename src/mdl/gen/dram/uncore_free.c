@@ -370,6 +370,11 @@ int mdl_gen_dram_intel_uncore_free(struct grp_group *grp)
 			goto fail;
 		total += (int64_t)count * entry->bpw;
 
+		if (total < 0) // non free-running counters are susceptible to
+			       // race-conditions under heavy workload...
+			       // stop-gap it
+			total = entry->bw_max;
+
 		if (!ptime)
 			continue;
 		int64_t bw = ((total - entry->prev) * 1000 * 1000 * 1000) /

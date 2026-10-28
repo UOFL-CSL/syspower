@@ -271,7 +271,8 @@ int grp_storage_groups_push(void)
 		const char *udev_name =
 			udev_device_get_property_value(udev_dev, "DEVNAME");
 		if (!udev_name || strncmp(udev_name, "/dev/loop", 9) == 0 ||
-		    strncmp(udev_name, "/dev/ram", 8) == 0) {
+		    strncmp(udev_name, "/dev/ram", 8) == 0 ||
+		    strncmp(udev_name, "/dev/dm", 7) == 0) {
 			grp_group_destroy(storage);
 			CFG_FREE(dev);
 			udev_device_unref(udev_dev);
@@ -498,8 +499,15 @@ int grp_nic_groups_push(void)
 		const char *match[] = { model, silicon_vendor, board_vendor,
 					NULL };
 
-		hw_dev_init(dev, udev_path, match, SYSPWR_HW_LOCALE_LOCAL,
-			    CFG_EFFICIENCY);
+		if (hw_dev_init( // nothing matched
+			    dev, udev_path, match, SYSPWR_HW_LOCALE_LOCAL,
+			    CFG_EFFICIENCY)) {
+			hw_dev_init( // so use a generic
+				dev, udev_path,
+				(const char *[]){ "generic_nic", NULL },
+				SYSPWR_HW_LOCALE_LOCAL, CFG_EFFICIENCY);
+		}
+
 
 		if (dev->mpn == 0) {
 			grp_group_destroy(nic);
