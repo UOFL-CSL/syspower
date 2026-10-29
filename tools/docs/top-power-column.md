@@ -1,6 +1,6 @@
-# Per-process power in `top`, by component
+# `sptop`: per-process power in `top`, by component
 
-This guide shows how to add **power columns** to `top`. They show how many watts each process uses for each hardware component (CPU, RAM, disk) plus its total, along with a summary line of whole-machine power per component. It follows the steps it took to build it the first time and the problems that came up along the way, so you can rebuild it, change it, or move it to a new machine.
+This guide shows how to add **power columns** to `top`. They show how many watts each process uses for each hardware component (CPU, RAM, disk) plus its total, along with a summary line of whole-machine power per component. The modified program is installed under its own name, **`sptop`** (syspower top), so Ubuntu's normal `top` stays untouched. It follows the steps it took to build it the first time and the problems that came up along the way, so you can rebuild it, change it, or move it to a new machine.
 
 ```
 Watts : CPU 6.10, RAM 12.27, Disk 1.85, NIC -, Board 8.17, Fan -, GPU -,  Total 28.39
@@ -13,37 +13,32 @@ Watts : CPU 6.10, RAM 12.27, Disk 1.85, NIC -, Board 8.17, Fan -, GPU -,  Total 
 
 **Where the code lives**
 
-| What | Where |
+Everything is in this repo (syspower), branch `proportional`, under `tools/`:
+
+| Path | What |
 |---|---|
-| Modified `top`, with syspower's code copied in under `src/top/syspower/` | [`top-power-column.patch`](top-power-column.patch), next to this guide. It's a patch against [procps-ng](https://gitlab.com/procps-ng/procps) tag `v4.0.4`, made of 3 commits. |
-| `hw.c` bug fix, `tools/fio_dual.sh` test workload, this guide | this repo (syspower), branch `proportional` |
+| [`tools/procps/`](../procps/) | `top`'s source code: [procps-ng](https://gitlab.com/procps-ng/procps) **v4.0.4** with the power changes, and syspower's code copied in under `src/top/syspower/` |
+| [`tools/docs/`](.) | this guide |
+| [`tools/fio_dual.sh`](../fio_dual.sh) | test workload: a heavy and a light fio job in parallel |
+| `src/hw/hw.c` | syspower's blank-name bug fix (commit `917ac7c`), also in the copy |
 
-## Quick start: use the finished code
+`tools/procps/` is plain files tracked by syspower's git, not a separate repo. procps's own history isn't included; see the official GitLab for that. `tools/procps/.tarball-version` holds `4.0.4`, because without git history procps's build can't work out its version and would call itself "UNKNOWN".
 
-If you just want the working columns, apply the patch instead of making every change in sections 4–7 by hand. Install the packages from [section 2](#2-before-you-start) first.
+## Quick start: build and run it
+
+Install the packages from [section 2](#2-before-you-start) first. Then, from the syspower repo:
 
 ```bash
-cd ~/Documents/lab
-git clone -b v4.0.4 https://gitlab.com/procps-ng/procps.git
-cd procps
-git switch -c power-column
-git am ~/Documents/lab/syspower/docs/top-power-column.patch   # adds the power commits
-
-./autogen.sh
-./configure --disable-nls
+cd tools/procps
+./autogen.sh                 # generates ./configure (only needed once)
+./configure --disable-nls    # (only needed once)
 make -j8 src/top/top
 sudo ./src/top/top
 ```
 
-`git am` applies the patch as real commits, keeping their authors and messages. Then continue with [section 8](#8-build-run-install-test) to install and test it.
+Then continue with [section 8](#8-build-run-install-test) to install it as `sptop`, so `sudo sptop` works from anywhere.
 
-**After you change `top`**, regenerate the patch so the repo stays current. From the procps folder:
-```bash
-git format-patch v4.0.4..HEAD --stdout > ~/Documents/lab/syspower/docs/top-power-column.patch
-```
-This puts **all** your commits since v4.0.4 into the one file. Commit the updated patch to syspower.
-
-The rest of this guide explains what the patch changes and why.
+**The rest of this guide explains every change made to `top`, and why.** It's written so you could redo them on a fresh copy of procps, e.g. to move to a newer version (sections 3–7).
 
 ---
 
@@ -102,7 +97,7 @@ An earlier version ran syspower as a separate program that wrote its total to a 
 - measurements happen exactly when `top` refreshes, so power and process activity cover the same time window
 
 The trade-offs:
-- `top` must run as root (`sudo top`) to read the power counters and other processes' disk statistics.
+- It must run as root (`sudo sptop`) to read the power counters and other processes' disk statistics.
 - The copied syspower code doesn't update itself when syspower changes (see [§10](#10-limitations-and-ideas-for-next-steps)).
 
 ### The pieces
@@ -148,19 +143,28 @@ apt-cache policy procps     # Ubuntu 24.04: 2:4.0.4-...  -> use tag v4.0.4
 
 ## 3. Get `top`'s source and build it unmodified
 
+> **Already done in this repo:** `tools/procps/` contains the finished result of sections 3–7. Follow these sections only to redo the work on a fresh copy of procps, e.g. a newer version.
+
 `top` is **not** part of the Linux kernel. It's a normal program from the **procps-ng** package. Only `top` gets rebuilt; there's no kernel compile and no reboot.
 
-```bash
-cd ~/Documents/lab
-git clone -b v4.0.4 https://gitlab.com/procps-ng/procps.git
-cd procps
-git switch -c power-column
+How the procps code got into this repo, starting from the official release:
 
+```bash
+cd /tmp
+git clone -b v4.0.4 https://gitlab.com/procps-ng/procps.git
+cd ~/Documents/lab/syspower
+mkdir -p tools/procps
+git -C /tmp/procps archive --format=tar HEAD | tar -x -C tools/procps   # source files only, no .git
+echo 4.0.4 > tools/procps/.tarball-version                              # version, since there's no git history
+
+cd tools/procps
 ./autogen.sh                 # generates ./configure
 ./configure --disable-nls    # --disable-nls: skip translations (not needed)
 make -j8 src/top/top         # build just top, plus the library it needs
 ./src/top/top                # run it from the build folder; q to quit
 ```
+- **`git archive`** exports only the tracked source files. Copying a folder that still has its own `.git` inside would make syspower's git treat it as a separate embedded repo and skip its contents.
+- The build creates hundreds of generated files (`configure`, `Makefile`, `*.o`, …). procps's own `.gitignore` (inside `tools/procps/`) keeps them out of commits.
 
 Build the unmodified version first. If this fails, the problem is your setup, not your changes.
 
@@ -174,7 +178,7 @@ Copy syspower's `src/` folder into `procps/src/top/syspower/src/`, **keeping its
 
 ```bash
 SRC=~/Documents/lab/syspower/src
-DST=~/Documents/lab/procps/src/top/syspower
+DST=~/Documents/lab/syspower/tools/procps/src/top/syspower
 mkdir -p $DST/src
 cd $SRC
 find dconf.h grp hw mdl ut spdx -type f \( -name "*.c" -o -name "*.h" \) \
@@ -246,7 +250,7 @@ int grp_step(int64_t *uw, int *n, int nmodels); // top: measure all groups once
 
 ## 5. Write the connector files
 
-All four go in `procps/src/top/syspower/`.
+All four go in `tools/procps/src/top/syspower/`.
 
 **`sp_config.h`**: automatically included before every syspower file (see step 6):
 ```c
@@ -411,7 +415,7 @@ Returning `-1` means "this model can't measure". GPU groups are only created for
 
 ## 6. Build syspower's code as a library linked into `top`
 
-In **`procps/Makefile.am`**, right after the `src_top_top_LDADD = ...` line:
+In **`tools/procps/Makefile.am`**, right after the `src_top_top_LDADD = ...` line:
 
 ```make
 # syspower's power-measuring code, built as a small library linked into top
@@ -460,7 +464,7 @@ src_top_top_LDADD += src/top/syspower/libsyspower.la -lhwloc -ludev
 
 ## 7. Changes to `top` itself
 
-All in `procps/src/top/`. Line numbers are approximate (v4.0.4).
+All in `tools/procps/src/top/`. Line numbers are approximate (v4.0.4).
 
 > **`top.h` is saved in the old ISO-8859 text encoding, not UTF-8.** Some editors quietly convert it when saving, which corrupts a few special characters in it. If your editor asks about the encoding, keep ISO-8859-1. Or make the `top.h` edits with `sed` or a short Python script.
 
@@ -746,7 +750,7 @@ static const char *pwr_summary_line (void) {
    int c, n;
 
    if (!Pwr_ready)
-      return "Watts : unavailable, run top as root (sudo top)\n";
+      return fmtmk("Watts : unavailable, run as root (sudo %s)\n", Myname);
    if (!Pwr_ok)
       return "Watts : measurement failed, see " SP_LOG_PATH "\n";
 
@@ -779,27 +783,31 @@ And at the end of `summary_show()`, after the memory lines and before `#undef is
 
 ### Build and run from the build folder
 ```bash
-cd ~/Documents/lab/procps
+cd ~/Documents/lab/syspower/tools/procps
 make -j8 src/top/top
 ./src/top/top              # not root -> power columns "-", Watts line says run as root
 sudo ./src/top/top         # root     -> watts after ~2 refreshes
 ```
 The first one or two refreshes show `0.000`. The CPU energy counter needs two readings before it can calculate a rate, and disk bytes need a previous total to compare against.
 
-### Install so plain `top` / `sudo top` run your version
+### Install as `sptop`, a command that works from anywhere
 ```bash
-sudo ./libtool --mode=install install -m 755 src/top/top /usr/local/bin/top
-hash -r                    # make bash forget it found top in /usr/bin before
-which top                  # -> /usr/local/bin/top
+sudo ./libtool --mode=install install -m 755 src/top/top /usr/local/bin/sptop
+hash -r                    # make bash re-check where commands live
+which sptop                # -> /usr/local/bin/sptop
+sudo sptop
 ```
-- `/usr/local/bin` comes before `/usr/bin` in the search path, including `sudo`'s.
-- Ubuntu's original stays in `/usr/bin/top`.
+- `/usr/local/bin` is in the command search path (`PATH`), including `sudo`'s, so `sptop` works from any folder.
+- The build still produces a program called `top`. Only the **installed copy** is named `sptop`.
+- `top` takes its name from how it was started, so the header line, the root message and its **settings file** all say `sptop` automatically. Settings saved with `W` go to `~/.config/procps/sptoprc`, separate from normal `top`'s `toprc`.
+- **Plain `top` is still Ubuntu's original** (`/usr/bin/top`), so you can compare the two side by side.
 - **After every code change**, rebuild and repeat the install command. The installed copy doesn't update itself.
-- Test with `sudo ./src/top/top` first and install only once it works, so a half-finished change never replaces the `top` everyone uses.
+- Test with `sudo ./src/top/top` first and install only once it works, so a half-finished change never replaces the `sptop` others use.
+- `sptop` was chosen because it isn't taken by any Ubuntu package. (`powertop` is Intel's PowerTOP, and `ptop` is an existing package.)
 
 Undo:
 ```bash
-sudo rm /usr/local/bin/top && hash -r
+sudo rm /usr/local/bin/sptop && hash -r
 ```
 
 ### Test with fio
@@ -807,7 +815,7 @@ In the syspower repo:
 ```bash
 tools/fio_dual.sh 60       # 60 s of a heavy and a light fio job, in parallel
 ```
-In another terminal run `sudo top`. Both `fio` lines should rise to the top of the list (sorted by %CPU):
+In another terminal run `sudo sptop`. Both `fio` lines should rise to the top of the list (sorted by %CPU):
 
 | Job | %CPU (14-core laptop) | What to expect |
 |---|---|---|
@@ -835,7 +843,7 @@ sudo cat /var/tmp/top-syspower.log      # cpu=.. ram=.. disk=.. ... total=.. W e
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Power columns always `-`, Watts line says "run top as root" | Not running as root | `sudo top`. The log says `not root, power columns disabled`. |
+| Power columns always `-`, Watts line says "run as root" | Not running as root | `sudo sptop`. The log says `not root, power columns disabled`. |
 | Columns `-` as root, Watts line says "measurement failed" | A syspower measurement failed | Check `/var/tmp/top-syspower.log`, or run with `TOP_SYSPOWER_DEBUG=1` |
 | Watts line shows `-` for NIC or Fan | syspower found no supported hardware. **NIC:** only network cards listed in `hw/mpn/` get a group (there's no generic fallback), so WiFi is skipped. **Fan:** `CFG_HWMONS_FANS` in `dconf.h` points at the lab machine's sensor (`hwmon6`), and many laptops don't expose fans to Linux at all. | Add the card under `hw/mpn/` (or a generic NIC fallback). Set `CFG_HWMONS_FANS` to the sensor whose folder has `pwm*` files. |
 | `DSK_W` is 0 for everything | Nobody read or wrote the disk this refresh, or the first refresh | Run a disk load (`tools/fio_dual.sh`) and wait ~6 s |
@@ -846,8 +854,8 @@ sudo cat /var/tmp/top-syspower.log      # cpu=.. ram=.. disk=.. ... total=.. W e
 | Standalone syspower: `libnvidia-ml.so.1: cannot open shared object file` | No NVIDIA driver on the machine | `sudo env LD_LIBRARY_PATH=$(ls -d /nix/store/*cuda_nvml_dev*-stubs/lib/stubs \| head -1) ./result/bin/syspower` (not needed for `top`, which uses `nvml_stub.c`) |
 | Build: `(*__errno_location ()).h: No such file` | `#include LIB_ERRNO` after `<errno.h>` is already included: the word `errno` inside the macro gets replaced too | Write `#include <errno.h>` directly |
 | Build: `#include expects "FILENAME" or <FILENAME>` | A file included a syspower header before `src/dconf.h` | Include `<src/dconf.h>` first |
-| Plain `/usr/bin/top` complains about its settings | You pressed `W` (save) in the modified `top`. Its settings file has extra columns the original doesn't know. | Delete `~/.config/procps/toprc`, or don't save with `W` |
-| Plain `top` shows no power columns at all | The terminal still remembers Ubuntu's `/usr/bin/top` from before the install | `hash -r`, or open a new terminal. `type top` should say `/usr/local/bin/top`. |
+| Normal `top` complains about its settings | An older install put the modified program at `/usr/local/bin/top`, and `W` saved its settings into normal `top`'s `toprc` | `sudo rm /usr/local/bin/top`, then delete `~/.config/procps/toprc`. Installed as `sptop`, it uses its own `sptoprc`. |
+| `sptop: command not found` | Not installed yet, or the terminal hasn't re-checked its command list | Install it (section 8), then `hash -r` or open a new terminal. `type sptop` should say `/usr/local/bin/sptop`. |
 | `sudo cmd &` hangs forever | A background `sudo` can't ask for your password, so it waits (shows as state `T`) | Run `sudo -v` first. Remove stuck ones with `sudo kill -9 <pid>`. |
 
 ---
